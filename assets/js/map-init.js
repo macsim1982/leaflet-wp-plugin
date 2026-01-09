@@ -1,0 +1,303 @@
+const fitBoundsOptions = {
+    padding: [30, 30],
+};
+
+const SVG_ICONS = {
+    custom: (color) => `
+        <svg width="32" height="42" viewBox="0 0 32 42" xmlns="http://www.w3.org/2000/svg">
+            <path d="M16 0C7.2 0 0 7.2 0 16c0 12 16 26 16 26s16-14 16-26C32 7.2 24.8 0 16 0z" fill="${color}"/>
+            <circle cx="16" cy="16" r="6" fill="#fff"/>
+        </svg>
+    `,
+    asterisk: (color) => `
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 64 64">
+            <circle cx="32" cy="32" r="30" fill="${color}"/>
+            <path d="M45.5 36.3c.4.2.5.5.5.9c0 .5-.3 1.2-1 2.3c-.6 1.1-1.1 1.7-1.5 2c-.4.2-.7.2-1.1 0l-8.6-6.2L35 45.8c.1.4-.1.7-.5.9c-.4.2-1.3.3-2.5.3s-2.1-.1-2.5-.3c-.4-.2-.6-.5-.5-.9l1.1-10.5l-8.5 6.2c-.3.2-.7.2-1.1 0c-.4-.2-.9-.9-1.5-2c-.6-1-.9-1.8-.9-2.3c0-.5.2-.8.5-.9l9.7-4.3l-9.7-4.3c-.4-.2-.6-.5-.5-1c0-.5.3-1.2.9-2.3c.6-1 1.1-1.7 1.5-1.9s.8-.2 1.1 0l8.5 6.2L29 18.3c-.1-.4.1-.7.5-1s1.3-.3 2.5-.3s2.1.1 2.5.3c.4.2.6.5.5 1l-1.1 10.5l8.6-6.2c.3-.2.7-.2 1.1 0s.9.9 1.5 2c.6 1 .9 1.8 1 2.2c0 .5-.1.8-.5 1L35.8 32l9.7 4.3" fill="#fff"/>
+        </svg>
+    `
+};
+
+function hexToRgb(hex) {
+    const v = hex.replace('#', '');
+    const bigint = parseInt(v, 16);
+    return [
+        (bigint >> 16) & 255,
+        (bigint >> 8) & 255,
+        bigint & 255
+    ].join(',');
+}
+
+function createGeoJsonLayer(map, geojson, categoryMap) {
+    const groups = {};
+    const allGroup = L.featureGroup().addTo(map);
+
+    console.log('Création de la couche GeoJSON', geojson, categoryMap);
+
+    const layer = L.geoJSON(geojson, {
+        style(feature) {
+            return {
+                color: feature.properties.color,
+                weight: feature.properties.weight || 5,
+                opacity: 1
+            };
+        },
+
+        pointToLayer(feature, latlng) {
+            const p = feature.properties;
+            const category = categoryMap[p.term] || categoryMap.default;
+            p.color = category.color;
+
+            return L.marker(latlng, {
+                icon: createSvgIcon(
+                    feature.properties.color,
+                    feature.properties.icon
+                )
+            });
+        },
+
+        onEachFeature(feature, layer) {
+            const p = feature.properties;
+            const category = categoryMap[p.term] || categoryMap.default;
+
+            const popup = buildPopup(p, category);
+
+            layer.bindPopup(popup, {
+                autoPan: true,
+                maxWidth: 400,
+                minWidth: 200,
+                className: 'map-popup'
+            });
+
+            if (!groups[p.term]) {
+                groups[p.term] = L.featureGroup();
+            }
+
+            groups[p.term].addLayer(layer);
+            allGroup.addLayer(layer);
+        }
+    });
+
+    return { layer, groups, allGroup };
+}
+
+function createSvgIcon(color, type = 'custom') {
+    const svg = SVG_ICONS[type]?.(color) || SVG_ICONS.custom(color);
+
+    return L.divIcon({
+        className: 'svg-marker',
+        html: svg,
+        iconSize: [32, 42],
+        iconAnchor: [16, 42],
+        popupAnchor: [0, -42]
+    });
+}
+
+function initMap() {
+    const map = L.map('map').setView([47.6675, -2.9838], 15);
+
+    map.attributionControl.setPrefix(false);
+    map.attributionControl
+        .addAttribution('© OpenStreetMap')
+        .addAttribution('© CARTO');
+
+    map.on('popupopen', centerPopup);
+
+    L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
+        { subdomains: 'abcd', minZoom: 13, maxZoom: 18 }
+    ).addTo(map);
+
+    L.tileLayer(
+        'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',
+        { subdomains: 'abcd', minZoom: 13, maxZoom: 18 }
+    ).addTo(map);
+
+    return map;
+}
+
+function centerPopup(e) {
+    const px = e.target.project(e.popup.getLatLng());
+    px.y -= e.popup._container.offsetHeight / 2;
+    e.target.panTo(e.target.unproject(px), { animate: true });
+}
+
+function normalizeCategories(categories = []) {
+    return categories.reduce((acc, { slug, color, name }) => {
+        acc[slug] = { color, name };
+        return acc;
+    }, {
+        default: { color: '#333333', name: 'all' }
+    });
+}
+
+function buildPopup(item, category) {
+    return `
+        <div class="map-popup-category" style="--cat-rgb:${category.color}">
+            <div class="map-popup-category-name">${category.name}</div>
+            <div class="map-popup ${item.term}">
+                ${item.image ? `<img class="map-popup-image" src="${item.image}" alt="${item.title}" />` : ''}
+                <div class="map-popup-content">
+                    <h3>${item.title}</h3>
+                    <p>${item.excerpt}</p>
+                    ${item.link !== "no" ? `<a href="${item.link}">Voir la fiche</a>` : ''}
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+function createLayer(item, category) {
+    const popup = buildPopup(item, category);
+    const popupOptions = {
+        autoPan: true,
+        maxWidth: 400,
+        minWidth: 200,
+        className: 'map-popup'
+    };
+
+    // GeoJSON
+    if (item.geojson) {
+        let data = item.geojson;
+
+        if (typeof data === 'string') {
+            try {
+                data = JSON.parse(data);
+            } catch {
+                console.error('GeoJSON invalide', data);
+                return null;
+            }
+        }
+
+        return L.geoJSON(data, {
+            style: {
+                color: category.color,
+                weight: item.weight || 5,
+                opacity: 1
+            },
+            pointToLayer(_, latlng) {
+                return L.marker(latlng, {
+                    icon: createSvgIcon(category.color, _.properties?.icon)
+                });
+            },
+            onEachFeature(_, layer) {
+                layer.bindPopup(popup, popupOptions);
+            }
+        });
+    }
+
+    // Point simple
+    if (item.lat && item.lng) {
+        return L.marker(
+            [item.lat, item.lng],
+            { icon: createSvgIcon(category.color) }
+        ).bindPopup(popup, popupOptions);
+    }
+
+    return null;
+}
+
+function clearMap(map) {
+    Object.values(map._markerGroups).forEach(group => {
+        if (map.hasLayer(group)) {
+            map.removeLayer(group);
+        }
+    });
+
+    if (map.hasLayer(map._allGroup)) {
+        map.removeLayer(map._allGroup);
+    }
+}
+
+function showAllCategories(map) {
+    clearMap(map);
+
+    map._allGroup.addTo(map);
+
+    if (map._allGroup.getLayers().length) {
+        map.flyToBounds(map._allGroup.getBounds(), fitBoundsOptions);
+    }
+}
+
+function showCategory(map, term) {
+    clearMap(map);
+
+    const group = map._markerGroups[term];
+    if (!group) return;
+
+    group.addTo(map);
+
+    if (group.getLayers().length) {
+        map.flyToBounds(group.getBounds(), fitBoundsOptions);
+    }
+}
+
+function setActiveFilter(term) {
+    document.querySelectorAll('.map-filter-cat').forEach(btn => {
+        const isActive = btn.getAttribute('data-term') === term;
+
+        btn.classList.toggle('is-active', isActive);
+        btn.setAttribute('aria-pressed', isActive.toString());
+    });
+}
+
+function renderCategoryFilters(categoryMap, containerSelector) {
+    const container = document.querySelector(containerSelector);
+    if (!container) return;
+
+    container.innerHTML = '';
+    container.setAttribute('role', 'group');
+    container.setAttribute('aria-label', 'Filtrer la carte');
+
+    Object.entries(categoryMap).forEach(([term, { name, color }]) => {
+        const button = document.createElement('button');
+
+        button.type = 'button';
+        button.className = 'map-filter-cat';
+        button.dataset.term = term;
+
+        const label = term === 'default' || !name ? 'Tous' : name;
+        button.textContent = label;
+
+        const isDefault = term === 'default';
+
+        button.classList.toggle('is-active', isDefault);
+        button.setAttribute('aria-pressed', isDefault.toString());
+        button.setAttribute('style', '--cat-rgb: ' + hexToRgb(color));
+
+        container.appendChild(button);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    if (!mapData?.geojson) return;
+
+    const map = initMap();
+    const categoryMap = normalizeCategories(mapData.categories);
+
+    const { layer, groups, allGroup } =
+        createGeoJsonLayer(map, mapData.geojson, categoryMap);
+
+    map._markerGroups = groups;
+    map._allGroup = allGroup;
+
+    layer.addTo(map);
+
+    if (allGroup.getLayers().length) {
+        map.flyToBounds(allGroup.getBounds(), fitBoundsOptions);
+    }
+
+    renderCategoryFilters(categoryMap, '.map-filters');
+    showAllCategories(map);
+    setActiveFilter('default');
+
+    document.querySelectorAll('.map-filter-cat').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const term = btn.dataset.term;
+            setActiveFilter(term);
+
+            term === 'default'
+                ? showAllCategories(map)
+                : showCategory(map, term);
+        });
+    });
+});
