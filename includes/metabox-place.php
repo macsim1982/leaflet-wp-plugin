@@ -13,8 +13,6 @@ function leaflet_render_place_metabox($post) {
 
 	wp_nonce_field(leaflet_map_meta_key('place_meta'), leaflet_map_meta_key('place_nonce'));
 
-    $prefix = leaflet_map_prefix();
-
     $lat     = get_post_meta($post->ID, leaflet_map_meta_key("latitude"), true);
     $lng     = get_post_meta($post->ID, leaflet_map_meta_key("longitude"), true);
     $geo = get_post_meta($post->ID, leaflet_map_meta_key("geojson"), true);
@@ -34,9 +32,7 @@ function leaflet_render_place_metabox($post) {
 
 	<p>
 		<label>GeoJSON</label><br>
-		<textarea name="geojson" rows="5" style="width:100%">
-        <?= esc_textarea($geo) ?>
-        </textarea>
+		<textarea name="geojson" rows="5" style="width:100%"><?= esc_textarea($geo) ?></textarea>
 	</p>
 
 	<p>
@@ -47,8 +43,6 @@ function leaflet_render_place_metabox($post) {
 }
 
 add_action('save_post_' . leaflet_map_post_type(), function ($post_id) {
-
-    $prefix = leaflet_map_prefix();
 
 	if (!isset($_POST[leaflet_map_meta_key('place_nonce')]) ||
 	    !wp_verify_nonce($_POST[leaflet_map_meta_key('place_nonce')], leaflet_map_meta_key('place_meta'))) {

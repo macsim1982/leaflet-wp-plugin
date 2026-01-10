@@ -4,9 +4,6 @@ add_action('init', function () {
     $post_type = leaflet_map_post_type();
     $taxonomy = leaflet_map_taxonomy();
 
-    $slug_post = 'lieu';
-    $slug_tax = 'categorie';
-
 	if (post_type_exists($post_type)) {
 		return;
 	}
