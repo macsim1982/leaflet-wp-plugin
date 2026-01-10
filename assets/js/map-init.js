@@ -17,9 +17,14 @@ const SVG_ICONS = {
     `
 };
 
+/**
+ * Convert a hex color to an RGB string (``r,g,b``).
+ * @param {string} hex Hex color string, with or without leading `#`.
+ * @returns {string} Comma separated RGB values (e.g. "255,0,0").
+ */
 function hexToRgb(hex) {
-    const v = hex.replace('#', '');
-    const bigint = parseInt(v, 16);
+    const v = String(hex || '').replace('#', '');
+    const bigint = parseInt(v, 16) || 0;
     return [
         (bigint >> 16) & 255,
         (bigint >> 8) & 255,
@@ -27,11 +32,17 @@ function hexToRgb(hex) {
     ].join(',');
 }
 
+/**
+ * Create a GeoJSON layer and grouped feature groups from the provided data.
+ * @param {L.Map} map Leaflet map instance.
+ * @param {Object} geojson GeoJSON FeatureCollection or array of features.
+ * @param {Object} categoryMap Map of category slug => {name, color}.
+ * @returns {{layer: L.GeoJSON, groups: Object, allGroup: L.FeatureGroup}}
+ */
 function createGeoJsonLayer(map, geojson, categoryMap) {
     const groups = {};
     const allGroup = L.featureGroup().addTo(map);
 
-    console.log('Création de la couche GeoJSON', geojson, categoryMap);
 
     const layer = L.geoJSON(geojson, {
         style(feature) {
@@ -92,6 +103,11 @@ function createSvgIcon(color, type = 'custom') {
     });
 }
 
+/**
+ * Initialize the map instance with base layers and attribution.
+ * @returns {L.Map}
+ */
+
 function initMap() {
     const map = L.map('map').setView([47.6675, -2.9838], 15);
 
@@ -121,6 +137,12 @@ function centerPopup(e) {
     e.target.panTo(e.target.unproject(px), { animate: true });
 }
 
+/**
+ * Normalize an array of category objects into a map keyed by slug.
+ * @param {Array} categories Array of objects with {slug, color, name}.
+ * @returns {Object} Map of slug => {color, name}
+ */
+
 function normalizeCategories(categories = []) {
     return categories.reduce((acc, { slug, color, name }) => {
         acc[slug] = { color, name };
@@ -130,6 +152,12 @@ function normalizeCategories(categories = []) {
     });
 }
 
+/**
+ * Build HTML for a feature popup.
+ * @param {Object} item Feature properties.
+ * @param {Object} category Category object with {name, color}.
+ * @returns {string} HTML string for popup.
+ */
 function buildPopup(item, category) {
     return `
         <div class="map-popup-category" style="--cat-rgb:${category.color}">
@@ -144,56 +172,6 @@ function buildPopup(item, category) {
             </div>
         </div>
     `;
-}
-
-function createLayer(item, category) {
-    const popup = buildPopup(item, category);
-    const popupOptions = {
-        autoPan: true,
-        maxWidth: 400,
-        minWidth: 200,
-        className: 'map-popup'
-    };
-
-    // GeoJSON
-    if (item.geojson) {
-        let data = item.geojson;
-
-        if (typeof data === 'string') {
-            try {
-                data = JSON.parse(data);
-            } catch {
-                console.error('GeoJSON invalide', data);
-                return null;
-            }
-        }
-
-        return L.geoJSON(data, {
-            style: {
-                color: category.color,
-                weight: item.weight || 5,
-                opacity: 1
-            },
-            pointToLayer(_, latlng) {
-                return L.marker(latlng, {
-                    icon: createSvgIcon(category.color, _.properties?.icon)
-                });
-            },
-            onEachFeature(_, layer) {
-                layer.bindPopup(popup, popupOptions);
-            }
-        });
-    }
-
-    // Point simple
-    if (item.lat && item.lng) {
-        return L.marker(
-            [item.lat, item.lng],
-            { icon: createSvgIcon(category.color) }
-        ).bindPopup(popup, popupOptions);
-    }
-
-    return null;
 }
 
 function clearMap(map) {

@@ -1,7 +1,8 @@
 <?php
 
-add_action(leaflet_map_meta_key('cat_place_add_form_fields'), 'mcs_add_term_color');
-add_action(leaflet_map_meta_key('cat_place_edit_form_fields'), 'mcs_edit_term_color');
+// Use the taxonomy hooks for adding/editing term form fields.
+add_action(leaflet_map_taxonomy() . '_add_form_fields', 'mcs_add_term_color');
+add_action(leaflet_map_taxonomy() . '_edit_form_fields', 'mcs_edit_term_color');
 
 function mcs_add_term_color() {
 	?>
