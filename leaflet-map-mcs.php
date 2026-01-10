@@ -19,6 +19,7 @@ require_once LEAFLET_MAP_PATH . 'includes/metabox-place.php';
 require_once LEAFLET_MAP_PATH . 'includes/term-data.php';
 require_once LEAFLET_MAP_PATH . 'includes/enqueue.php';
 require_once LEAFLET_MAP_PATH . 'includes/data.php';
+require_once LEAFLET_MAP_PATH . 'includes/shortcode.php';
 require_once LEAFLET_MAP_PATH . 'includes/admin.php';
 
 register_activation_hook(__FILE__, function () {

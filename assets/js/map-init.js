@@ -108,8 +108,8 @@ function createSvgIcon(color, type = 'custom') {
  * @returns {L.Map}
  */
 
-function initMap() {
-    const map = L.map('map').setView([47.6675, -2.9838], 15);
+function initMap(el) {
+    const map = L.map(el).setView([47.6675, -2.9838], 15);
 
     map.attributionControl.setPrefix(false);
     map.attributionControl
@@ -160,11 +160,11 @@ function normalizeCategories(categories = []) {
  */
 function buildPopup(item, category) {
     return `
-        <div class="map-popup-category" style="--cat-rgb:${category.color}">
-            <div class="map-popup-category-name">${category.name}</div>
-            <div class="map-popup ${item.term}">
-                ${item.image ? `<img class="map-popup-image" src="${item.image}" alt="${item.title}" />` : ''}
-                <div class="map-popup-content">
+        <div class="leaflet-map-popup-category" style="--cat-rgb:${category.color}">
+            <div class="leaflet-map-popup-category-name">${category.name}</div>
+            <div class="leaflet-map-popup ${item.term}">
+                ${item.image ? `<img class="leaflet-map-popup-image" src="${item.image}" alt="${item.title}" />` : ''}
+                <div class="leaflet-map-popup-content">
                     <h3>${item.title}</h3>
                     <p>${item.excerpt}</p>
                     ${item.link !== "no" ? `<a href="${item.link}">Voir la fiche</a>` : ''}
@@ -209,16 +209,29 @@ function showCategory(map, term) {
     }
 }
 
-function setActiveFilter(term) {
-    document.querySelectorAll('.map-filter-cat').forEach(btn => {
-        const isActive = btn.getAttribute('data-term') === term;
+/**
+ * Set the active filter button state within a specific map container.
+ * @param {string} term Category term to activate
+ * @param {L.Map} map Leaflet map instance
+ */
+function setActiveFilter(term, map) {
+    const wrapper = map.getContainer().closest('.leaflet-map-wrapper');
+    if (!wrapper) return;
 
+    wrapper.querySelectorAll('.leaflet-map-filter-cat').forEach(btn => {
+        const isActive = btn.getAttribute('data-term') === term;
         btn.classList.toggle('is-active', isActive);
         btn.setAttribute('aria-pressed', isActive.toString());
     });
 }
 
-function renderCategoryFilters(categoryMap, containerSelector) {
+/**
+ * Render category filter buttons in a container.
+ * @param {Object} categoryMap Map of category slug => {name, color}
+ * @param {string} containerSelector CSS selector for container
+ * @param {L.Map} map Leaflet map instance
+ */
+function renderCategoryFilters(categoryMap, containerSelector, map) {
     const container = document.querySelector(containerSelector);
     if (!container) return;
 
@@ -230,7 +243,7 @@ function renderCategoryFilters(categoryMap, containerSelector) {
         const button = document.createElement('button');
 
         button.type = 'button';
-        button.className = 'map-filter-cat';
+        button.className = 'leaflet-map-filter-cat';
         button.dataset.term = term;
 
         const label = term === 'default' || !name ? 'Tous' : name;
@@ -247,35 +260,53 @@ function renderCategoryFilters(categoryMap, containerSelector) {
 }
 
 document.addEventListener("DOMContentLoaded", function () {
-    if (!mapData?.geojson) return;
+    // Support for multiple maps on the same page
+    const mapContainers = document.querySelectorAll('.leaflet-map-container');
+    
+    if (mapContainers.length === 0) return;
 
-    const map = initMap();
-    const categoryMap = normalizeCategories(mapData.categories);
+    mapContainers.forEach((containerEl) => {
+        const wrapper = containerEl.closest('.leaflet-map-wrapper');
+        if (!wrapper) return;
 
-    const { layer, groups, allGroup } =
-        createGeoJsonLayer(map, mapData.geojson, categoryMap);
+        const mapId = wrapper.getAttribute('data-map-id') || 'map-' + Math.random().toString(36).substr(2, 9);
+        const filtersId = mapId + '-filters';
 
-    map._markerGroups = groups;
-    map._allGroup = allGroup;
+        // Check if mapData exists and is valid
+        if (!window.mapData?.geojson) return;
 
-    layer.addTo(map);
+        const map = initMap(containerEl);
+        const categoryMap = normalizeCategories(window.mapData.categories);
 
-    if (allGroup.getLayers().length) {
-        map.flyToBounds(allGroup.getBounds(), fitBoundsOptions);
-    }
+        const { layer, groups, allGroup } =
+            createGeoJsonLayer(map, window.mapData.geojson, categoryMap);
 
-    renderCategoryFilters(categoryMap, '.map-filters');
-    showAllCategories(map);
-    setActiveFilter('default');
+        map._markerGroups = groups;
+        map._allGroup = allGroup;
+        map._mapId = mapId;
 
-    document.querySelectorAll('.map-filter-cat').forEach(btn => {
-        btn.addEventListener('click', () => {
-            const term = btn.dataset.term;
-            setActiveFilter(term);
+        layer.addTo(map);
 
-            term === 'default'
-                ? showAllCategories(map)
-                : showCategory(map, term);
-        });
+        if (allGroup.getLayers().length) {
+            map.flyToBounds(allGroup.getBounds(), fitBoundsOptions);
+        }
+
+        const filtersContainer = document.getElementById(filtersId);
+        if (filtersContainer) {
+            renderCategoryFilters(categoryMap, '#' + filtersId, map);
+            showAllCategories(map);
+            setActiveFilter('default', map);
+
+            filtersContainer.querySelectorAll('.leaflet-map-filter-cat').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const term = btn.dataset.term;
+                    setActiveFilter(term, map);
+
+                    term === 'default'
+                        ? showAllCategories(map)
+                        : showCategory(map, term);
+                });
+            });
+        }
     });
 });

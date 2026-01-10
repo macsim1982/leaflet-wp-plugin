@@ -13,55 +13,49 @@ Version: 1.0.0
  * use the Theme File Editor to modify this stylesheet. Instead, add the necessary style
  * overrides via "Additional CSS" in the Site Editor.
  */
-.leaflet-popup-content-wrapper.leaflet-popup-content-wrapper {
-    border-radius: 5px;
+
+/* ==========================================================
+   MAP LAYOUT
+   ========================================================== */
+
+.leaflet-map-wrapper {
+    position: relative;
+    width: 100%;
 }
 
-.leaflet-popup-content.leaflet-popup-content {
-    margin: 0;
+.leaflet-map-container {
+    width: 100%;
+    height: calc(100vh - 200px);
+    overflow: hidden;
 }
 
-.map-popup-category {
-    border-radius: 5px;
+/* ==========================================================
+   MAP FILTERS CONTAINER
+   ========================================================== */
+
+.leaflet-map-filters {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1000;
+
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 0;
 }
 
-.map-popup-category-name {
-    font-weight: bold;
-    color: #ffffff;
-    padding: 5px 10px;
-    background-color: var(--cat-rgb);
-    border-radius: 5px 5px 0 0;
-}
+/* ==========================================================
+   FILTER BUTTON
+   ========================================================== */
 
-.map-popup-image {
-    display: block;
-	max-width: 100%;
-	height: auto;
-}
-
-.map-popup-content {
-    padding: 5px 10px;
-}
-
-.map-popup-title {
-    margin-top: 0;
-    margin-bottom: 5px;
-    font-size: 1.2em;
-}
-
-.leaflet-container.leaflet-container a.leaflet-popup-close-button {
-	color: white;
-}
-.leaflet-container.leaflet-container a.leaflet-popup-close-button:hover,
-.leaflet-container.leaflet-container a.leaflet-popup-close-button:focus {
-	color: rgba(255, 255, 255, 0.8);
-}
-.map-filter-cat {
+.leaflet-map-filter-cat {
+    /* Color variables */
     --alpha: 1;
     --alpha-hover: 0.9;
     --alpha-active-hover: 0.08;
 
-    background-color: rgba(var(--cat-rgb), var(--alpha));
+    background-color: rgba(var(--cat-rgb, black), var(--alpha));
     color: #fff;
     border: 1px solid transparent;
 
@@ -69,7 +63,9 @@ Version: 1.0.0
     padding: 0 10px;
     min-width: 44px;
     min-height: 22px;
+
     font-size: 0.6em;
+    font-weight: 500;
 
     display: inline-flex;
     align-items: center;
@@ -84,55 +80,94 @@ Version: 1.0.0
         box-shadow 0.2s ease;
 }
 
-.map-filter-cat.is-active {
+/* Active state */
+
+.leaflet-map-filter-cat.is-active {
     background-color: #fff;
-    color: rgb(var(--cat-rgb));
-    border-color: rgba(var(--cat-rgb), 0.4);
+    color: rgb(var(--cat-rgb, black));
+    border-color: rgba(var(--cat-rgb, black), 0.4);
 }
+
+/* Hover states (desktop only) */
 
 @media (hover: hover) and (pointer: fine) {
 
-    /* bouton inactif */
-    .map-filter-cat:hover:not(.is-active) {
-        background-color: rgba(var(--cat-rgb), var(--alpha-hover));
+    .leaflet-map-filter-cat:hover:not(.is-active) {
+        background-color: rgba(var(--cat-rgb, black), var(--alpha-hover));
     }
 
-    /* bouton actif → hover PLUS LÉGER */
-    .map-filter-cat.is-active:hover {
-        background-color: rgba(var(--cat-rgb), var(--alpha-active-hover));
+    .leaflet-map-filter-cat.is-active:hover {
+        background-color: rgba(var(--cat-rgb, black), var(--alpha-active-hover));
     }
 }
 
-.map-filter-cat:focus {
+/* Focus & disabled */
+
+.leaflet-map-filter-cat:focus {
     outline: none;
 }
 
-.map-filter-cat:focus-visible {
-    box-shadow: inset 0 0 0 2px rgb(var(--cat-rgb));
+.leaflet-map-filter-cat:focus-visible {
+    box-shadow: inset 0 0 0 2px rgb(var(--cat-rgb, black));
 }
 
-.map-filter-cat:disabled {
-    background-color: rgba(var(--cat-rgb), 0.06);
-    color: rgb(var(--cat-rgb));
-    border-color: transparent;
+.leaflet-map-filter-cat:disabled {
+    background-color: rgba(var(--cat-rgb, black), 0.06);
+    color: rgb(var(--cat-rgb, black));
     cursor: not-allowed;
     box-shadow: none;
 }
 
-.map-wrapper {
-    position: relative;
+/* ==========================================================
+   LEAFLET POPUPS
+   ========================================================== */
+
+.leaflet-popup-content-wrapper {
+    border-radius: 5px;
 }
 
-.map-container {
-    height: calc(100vh - 180px);
-}   
+.leaflet-popup-content {
+    margin: 0;
+}
 
-.map-filters {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5em;
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    z-index: 1000;
+/* Popup structure */
+
+.leaflet-map-popup-category {
+    border-radius: 5px;
+    overflow: hidden;
+}
+
+.leaflet-map-popup-category-name {
+    padding: 5px 10px;
+    font-weight: bold;
+    color: #fff;
+    background-color: var(--cat-rgb, black);
+}
+
+.leaflet-map-popup-content {
+    padding: 5px 10px;
+}
+
+.leaflet-map-popup-title {
+    margin: 0 0 5px;
+    font-size: 1.2em;
+}
+
+.leaflet-map-popup-image {
+    display: block;
+    max-width: 100%;
+    height: auto;
+}
+
+/* ==========================================================
+   LEAFLET OVERRIDES
+   ========================================================== */
+
+.leaflet-container a.leaflet-popup-close-button {
+    color: #fff;
+}
+
+.leaflet-container a.leaflet-popup-close-button:hover,
+.leaflet-container a.leaflet-popup-close-button:focus {
+    color: rgba(255, 255, 255, 0.8);
 }
