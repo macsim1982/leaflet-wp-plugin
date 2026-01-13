@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Leaflet Map by MCS
- * Description: Carte Leaflet alimentée via ACF
- * Version: 1.0.0
+ * Description: Carte Leaflet avec gestion de lieux personnalisés et filtres par catégories.
+ * Version: 1.0.1
  * Author: Macsim - Maxime Lerouge
  */
 

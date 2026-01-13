@@ -36,7 +36,9 @@ add_action('wp_enqueue_scripts', function () {
 	$args = [
 		'post_type'      => leaflet_map_post_type(),
 		'posts_per_page' => -1,
-		'post_status'    => 'publish'
+		'post_status'    => current_user_can('administrator')
+        ? ['publish', 'private', 'draft', 'pending', 'future']
+        : ['publish'],
 	];
 
 	$query = new WP_Query($args);
