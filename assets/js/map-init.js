@@ -17,11 +17,69 @@ const SVG_ICONS = {
     `
 };
 
+function panToPopup(marker, map) {
+    const popup = marker.getPopup();
+    const popupEl = popup.getElement();
+    if (!popupEl) return;
+    
+    const popupHeight = popupEl.offsetHeight;
+    const markerPoint = map.latLngToContainerPoint(marker.getLatLng());
+    
+    // Décalage vers le haut (popup au-dessus du marker)
+    const offsetPoint = L.point(
+        markerPoint.x,
+        markerPoint.y - popupHeight / 2
+    );
+    
+    const targetLatLng = map.containerPointToLatLng(offsetPoint);
+    
+    map.panTo(targetLatLng, {
+        animate: true,
+        duration: 0.3
+    });
+}
+
+function waitForPopupImages(popup) {
+    return new Promise(resolve => {
+        const container = popup.getElement();
+        if (!container) {
+            resolve();
+            return;
+        }
+        
+        const images = Array.from(container.querySelectorAll('img'));
+        
+        if (images.length === 0) {
+            resolve();
+            return;
+        }
+        
+        let loaded = 0;
+        
+        const check = () => {
+            loaded++;
+            if (loaded === images.length) {
+                resolve();
+            }
+        };
+        
+        images.forEach(img => {
+            if (img.complete && img.naturalWidth !== 0) {
+                check();
+            } else {
+                img.addEventListener('load', check, { once: true });
+                img.addEventListener('error', check, { once: true });
+            }
+        });
+    });
+}
+
+
 /**
- * Convert a hex color to an RGB string (``r,g,b``).
- * @param {string} hex Hex color string, with or without leading `#`.
- * @returns {string} Comma separated RGB values (e.g. "255,0,0").
- */
+* Convert a hex color to an RGB string (``r,g,b``).
+* @param {string} hex Hex color string, with or without leading `#`.
+* @returns {string} Comma separated RGB values (e.g. "255,0,0").
+*/
 function hexToRgb(hex) {
     const v = String(hex || '').replace('#', '');
     const bigint = parseInt(v, 16) || 0;
@@ -33,18 +91,18 @@ function hexToRgb(hex) {
 }
 
 /**
- * Create a GeoJSON layer and grouped feature groups from the provided data.
- * @param {L.Map} map Leaflet map instance.
- * @param {Object} geojson GeoJSON FeatureCollection or array of features.
- * @param {Object} categoryMap Map of category slug => {name, color}.
- * @returns {{layer: L.GeoJSON, groups: Object, allGroup: L.FeatureGroup}}
- */
+* Create a GeoJSON layer and grouped feature groups from the provided data.
+* @param {L.Map} map Leaflet map instance.
+* @param {Object} geojson GeoJSON FeatureCollection or array of features.
+* @param {Object} categoryMap Map of category slug => {name, color}.
+* @returns {{layer: L.GeoJSON, groups: Object, allGroup: L.FeatureGroup}}
+*/
 function createGeoJsonLayer(map, geojson, categoryMap) {
     const groups = {};
     const staticGroup = L.featureGroup().addTo(map);
     const allGroup = L.featureGroup().addTo(map);
-
-
+    
+    
     const layer = L.geoJSON(geojson, {
         style(feature) {
             return {
@@ -56,12 +114,12 @@ function createGeoJsonLayer(map, geojson, categoryMap) {
                 fillColor: feature.properties.fill || feature.properties.color || 'white'
             };
         },
-
+        
         pointToLayer(feature, latlng) {
             const p = feature.properties;
             const category = categoryMap[p.term] || categoryMap.default;
             p.color = category.color;
-
+            
             return L.marker(latlng, {
                 icon: createSvgIcon(
                     feature.properties.color,
@@ -69,44 +127,52 @@ function createGeoJsonLayer(map, geojson, categoryMap) {
                 )
             });
         },
-
+        
         onEachFeature(feature, layer) {
             const p = feature.properties;
             const category = categoryMap[p.term] || categoryMap.default;
-
+            
             if (!p.nopopup) {
                 const popup = buildPopup(p, category);
-
+                
                 layer.bindPopup(popup, {
-                    autoPan: true,
+                    autoPan: false,
                     maxWidth: 300,
                     minWidth: 200,
                     className: 'map-popup'
                 });
+                
+                layer.on('popupopen', async () => {
+                    const popup = layer.getPopup();
+                    
+                    await waitForPopupImages(popup);
+                    
+                    panToPopup(layer, map);
+                });
             } else {
                 layer.options.interactive = false;
             }
-
+            
             if (!groups[p.term]) {
                 groups[p.term] = L.featureGroup();
             }
-
+            
             if (p.term === 'default' || p.term === 'static') {
                 staticGroup.addLayer(layer);
             } else {
                 groups[p.term].addLayer(layer);
                 allGroup.addLayer(layer);
             }
-
+            
         }
     });
-
+    
     return { layer, groups, allGroup, staticGroup };
 }
 
 function createSvgIcon(color, type = 'custom') {
     const svg = SVG_ICONS[type]?.(color) || SVG_ICONS.custom(color);
-
+    
     return L.divIcon({
         className: 'svg-marker',
         html: svg,
@@ -117,30 +183,30 @@ function createSvgIcon(color, type = 'custom') {
 }
 
 /**
- * Initialize the map instance with base layers and attribution.
- * @returns {L.Map}
- */
+* Initialize the map instance with base layers and attribution.
+* @returns {L.Map}
+*/
 
 function initMap(el) {
     const map = L.map(el).setView([47.6675, -2.9838], 15);
-
+    
     map.attributionControl.setPrefix(false);
     map.attributionControl
-        .addAttribution('© OpenStreetMap')
-        .addAttribution('© CARTO');
-
+    .addAttribution('© OpenStreetMap')
+    .addAttribution('© CARTO');
+    
     map.on('popupopen', centerPopup);
-
+    
     L.tileLayer(
         'https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png',
         { subdomains: 'abcd', minZoom: 13, maxZoom: 18 }
     ).addTo(map);
-
+    
     L.tileLayer(
         'https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png',
         { subdomains: 'abcd', minZoom: 13, maxZoom: 18 }
     ).addTo(map);
-
+    
     return map;
 }
 
@@ -151,10 +217,10 @@ function centerPopup(e) {
 }
 
 /**
- * Normalize an array of category objects into a map keyed by slug.
- * @param {Array} categories Array of objects with {slug, color, name}.
- * @returns {Object} Map of slug => {color, name}
- */
+* Normalize an array of category objects into a map keyed by slug.
+* @param {Array} categories Array of objects with {slug, color, name}.
+* @returns {Object} Map of slug => {color, name}
+*/
 
 function normalizeCategories(categories = []) {
     return categories.reduce((acc, { slug, color, name }) => {
@@ -166,11 +232,11 @@ function normalizeCategories(categories = []) {
 }
 
 /**
- * Build HTML for a feature popup.
- * @param {Object} item Feature properties.
- * @param {Object} category Category object with {name, color}.
- * @returns {string} HTML string for popup.
- */
+* Build HTML for a feature popup.
+* @param {Object} item Feature properties.
+* @param {Object} category Category object with {name, color}.
+* @returns {string} HTML string for popup.
+*/
 function buildPopup(item, category) {
     return `
         <div class="leaflet-map-popup-category" style="--cat-rgb:${category.color}">
@@ -193,7 +259,7 @@ function clearMap(map) {
             map.removeLayer(group);
         }
     });
-
+    
     if (map.hasLayer(map._allGroup)) {
         map.removeLayer(map._allGroup);
     }
@@ -201,9 +267,9 @@ function clearMap(map) {
 
 function showAllCategories(map) {
     clearMap(map);
-
+    
     map._allGroup.addTo(map);
-
+    
     if (map._allGroup.getLayers().length) {
         map.flyToBounds(map._allGroup.getBounds(), fitBoundsOptions);
     }
@@ -211,26 +277,26 @@ function showAllCategories(map) {
 
 function showCategory(map, term) {
     clearMap(map);
-
+    
     const group = map._markerGroups[term];
     if (!group) return;
-
+    
     group.addTo(map);
-
+    
     if (group.getLayers().length) {
         map.flyToBounds(group.getBounds(), fitBoundsOptions);
     }
 }
 
 /**
- * Set the active filter button state within a specific map container.
- * @param {string} term Category term to activate
- * @param {L.Map} map Leaflet map instance
- */
+* Set the active filter button state within a specific map container.
+* @param {string} term Category term to activate
+* @param {L.Map} map Leaflet map instance
+*/
 function setActiveFilter(term, map) {
     const wrapper = map.getContainer().closest('.leaflet-map-wrapper');
     if (!wrapper) return;
-
+    
     wrapper.querySelectorAll('.leaflet-map-filter-cat').forEach(btn => {
         const isActive = btn.getAttribute('data-term') === term;
         btn.classList.toggle('is-active', isActive);
@@ -239,35 +305,35 @@ function setActiveFilter(term, map) {
 }
 
 /**
- * Render category filter buttons in a container.
- * @param {Object} categoryMap Map of category slug => {name, color}
- * @param {string} containerSelector CSS selector for container
- * @param {L.Map} map Leaflet map instance
- */
+* Render category filter buttons in a container.
+* @param {Object} categoryMap Map of category slug => {name, color}
+* @param {string} containerSelector CSS selector for container
+* @param {L.Map} map Leaflet map instance
+*/
 function renderCategoryFilters(categoryMap, containerSelector, map) {
     const container = document.querySelector(containerSelector);
     if (!container) return;
-
+    
     container.innerHTML = '';
     container.setAttribute('role', 'group');
     container.setAttribute('aria-label', 'Filtrer la carte');
-
+    
     Object.entries(categoryMap).forEach(([term, { name, color }]) => {
         const button = document.createElement('button');
-
+        
         button.type = 'button';
         button.className = 'leaflet-map-filter-cat';
         button.dataset.term = term;
-
+        
         const label = term === 'default' || !name ? 'Tous' : name;
         button.textContent = label;
-
+        
         const isDefault = term === 'default';
-
+        
         button.classList.toggle('is-active', isDefault);
         button.setAttribute('aria-pressed', isDefault.toString());
         button.setAttribute('style', '--cat-rgb: ' + hexToRgb(color));
-
+        
         container.appendChild(button);
     });
 }
@@ -277,46 +343,46 @@ document.addEventListener("DOMContentLoaded", function () {
     const mapContainers = document.querySelectorAll('.leaflet-map-container');
     
     if (mapContainers.length === 0) return;
-
+    
     mapContainers.forEach((containerEl) => {
         const wrapper = containerEl.closest('.leaflet-map-wrapper');
         if (!wrapper) return;
-
+        
         const mapId = wrapper.getAttribute('data-map-id') || 'map-' + Math.random().toString(36).substr(2, 9);
         const filtersId = mapId + '-filters';
-
+        
         // Check if mapData exists and is valid
         if (!window.mapData?.geojson) return;
-
+        
         const map = initMap(containerEl);
         const categoryMap = normalizeCategories(window.mapData.categories);
-
+        
         const { layer, groups, allGroup, staticGroup } =
-            createGeoJsonLayer(map, window.mapData.geojson, categoryMap);
-
+        createGeoJsonLayer(map, window.mapData.geojson, categoryMap);
+        
         map._staticGroup = staticGroup;
         map._markerGroups = groups;
         map._allGroup = allGroup;
         map._mapId = mapId;
-
+        
         if (allGroup.getLayers().length) {
             map.flyToBounds(allGroup.getBounds(), fitBoundsOptions);
         }
-
+        
         const filtersContainer = document.getElementById(filtersId);
         if (filtersContainer) {
             renderCategoryFilters(categoryMap, '#' + filtersId, map);
             showAllCategories(map);
             setActiveFilter('default', map);
-
+            
             filtersContainer.querySelectorAll('.leaflet-map-filter-cat').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const term = btn.dataset.term;
                     setActiveFilter(term, map);
-
+                    
                     term === 'default'
-                        ? showAllCategories(map)
-                        : showCategory(map, term);
+                    ? showAllCategories(map)
+                    : showCategory(map, term);
                 });
             });
         }
