@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Leaflet Map by MCS
  * Description: Carte Leaflet avec gestion de lieux personnalisés et filtres par catégories.
- * Version: 1.0.1
+ * Version: 1.0.2
  * Author: Macsim - Maxime Lerouge
  */
 

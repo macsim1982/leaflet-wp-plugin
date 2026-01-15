@@ -41,15 +41,19 @@ function hexToRgb(hex) {
  */
 function createGeoJsonLayer(map, geojson, categoryMap) {
     const groups = {};
+    const staticGroup = L.featureGroup().addTo(map);
     const allGroup = L.featureGroup().addTo(map);
 
 
     const layer = L.geoJSON(geojson, {
         style(feature) {
             return {
-                color: feature.properties.color,
-                weight: feature.properties.weight || 5,
-                opacity: 1
+                color: feature.properties.stroke || feature.properties.color,
+                weight: feature.properties['stroke-width'] || feature.properties.weight || 5,
+                dashArray: feature.properties.dash || null,
+                opacity: feature.properties.opacity || 1,
+                fillOpacity: feature.properties['fill-opacity'] || 0.2,
+                fillColor: feature.properties.fill || feature.properties.color || 'white'
             };
         },
 
@@ -70,25 +74,34 @@ function createGeoJsonLayer(map, geojson, categoryMap) {
             const p = feature.properties;
             const category = categoryMap[p.term] || categoryMap.default;
 
-            const popup = buildPopup(p, category);
+            if (!p.nopopup) {
+                const popup = buildPopup(p, category);
 
-            layer.bindPopup(popup, {
-                autoPan: true,
-                maxWidth: 400,
-                minWidth: 200,
-                className: 'map-popup'
-            });
+                layer.bindPopup(popup, {
+                    autoPan: true,
+                    maxWidth: 300,
+                    minWidth: 200,
+                    className: 'map-popup'
+                });
+            } else {
+                layer.options.interactive = false;
+            }
 
             if (!groups[p.term]) {
                 groups[p.term] = L.featureGroup();
             }
 
-            groups[p.term].addLayer(layer);
-            allGroup.addLayer(layer);
+            if (p.term === 'default' || p.term === 'static') {
+                staticGroup.addLayer(layer);
+            } else {
+                groups[p.term].addLayer(layer);
+                allGroup.addLayer(layer);
+            }
+
         }
     });
 
-    return { layer, groups, allGroup };
+    return { layer, groups, allGroup, staticGroup };
 }
 
 function createSvgIcon(color, type = 'custom') {
@@ -278,14 +291,13 @@ document.addEventListener("DOMContentLoaded", function () {
         const map = initMap(containerEl);
         const categoryMap = normalizeCategories(window.mapData.categories);
 
-        const { layer, groups, allGroup } =
+        const { layer, groups, allGroup, staticGroup } =
             createGeoJsonLayer(map, window.mapData.geojson, categoryMap);
 
+        map._staticGroup = staticGroup;
         map._markerGroups = groups;
         map._allGroup = allGroup;
         map._mapId = mapId;
-
-        layer.addTo(map);
 
         if (allGroup.getLayers().length) {
             map.flyToBounds(allGroup.getBounds(), fitBoundsOptions);
