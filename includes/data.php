@@ -113,17 +113,29 @@ add_action('wp_enqueue_scripts', function () {
 				continue;
 			}
 
-			$geoProps = $raw_feature['properties'] ?? [];
+			$geoProps = is_array($raw_feature['properties'] ?? null)
+				? $raw_feature['properties']
+				: [];
+
+			$geoStyle = array_intersect_key($geoProps, array_flip([
+				'nopopup',
+				'stroke',
+				'dash',
+				'fill',
+				'opacity',
+				'fill-opacity',
+				'stroke-width',
+			]));
 
 			$wpProps = [
 				'id'        => $pid,
-				'title'     => get_the_title(),
-				'excerpt'   => get_the_excerpt(),
+				'title'     => wp_strip_all_tags(get_the_title()),
+				'excerpt'   => wp_strip_all_tags(get_the_excerpt()),
 				'link'      => get_permalink(),
 				'term'      => $term_slug,
 				'term_name' => $term_name,
 				'color'     => $color,
-				'image'     => get_the_post_thumbnail_url($pid, 'medium'),
+				'image'     => get_the_post_thumbnail_url($pid, 'medium') ?: '',
 				'weight'    => $weight,
 				'icon'      => 'custom',
 			];
@@ -131,7 +143,7 @@ add_action('wp_enqueue_scripts', function () {
 			$features[] = [
 				'type'       => 'Feature',
 				'geometry'   => $raw_feature['geometry'],
-				'properties' => $geoProps + $wpProps
+				'properties' => array_merge($wpProps, $geoStyle),
 			];
 		}
 

@@ -17,13 +17,38 @@ const SVG_ICONS = {
     `
 };
 
-function panToPopup(marker, map) {
-    const popup = marker.getPopup();
+function getLayerLatLng(layer) {
+    const popup = typeof layer.getPopup === 'function' ? layer.getPopup() : null;
+    if (popup && typeof popup.getLatLng === 'function' && popup.getLatLng()) {
+        return popup.getLatLng();
+    }
+
+    if (typeof layer.getLatLng === 'function') {
+        return layer.getLatLng();
+    }
+
+    if (typeof layer.getBounds === 'function') {
+        const bounds = layer.getBounds();
+        if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
+            return bounds.getCenter();
+        }
+    }
+
+    return null;
+}
+
+function panToPopup(layer, map) {
+    const popup = typeof layer.getPopup === 'function' ? layer.getPopup() : null;
+    if (!popup) return;
+
     const popupEl = popup.getElement();
     if (!popupEl) return;
+
+    const latlng = getLayerLatLng(layer);
+    if (!latlng) return;
     
     const popupHeight = popupEl.offsetHeight;
-    const markerPoint = map.latLngToContainerPoint(marker.getLatLng());
+    const markerPoint = map.latLngToContainerPoint(latlng);
     
     // Décalage vers le haut (popup au-dessus du marker)
     const offsetPoint = L.point(
@@ -41,7 +66,9 @@ function panToPopup(marker, map) {
 
 function waitForPopupImages(popup) {
     return new Promise(resolve => {
-        const container = popup.getElement();
+        const container = popup && typeof popup.getElement === 'function'
+            ? popup.getElement()
+            : null;
         if (!container) {
             resolve();
             return;
@@ -64,7 +91,8 @@ function waitForPopupImages(popup) {
         };
         
         images.forEach(img => {
-            if (img.complete && img.naturalWidth !== 0) {
+            // Already-complete broken images never fire load/error again.
+            if (img.complete) {
                 check();
             } else {
                 img.addEventListener('load', check, { once: true });
@@ -116,20 +144,20 @@ function createGeoJsonLayer(map, geojson, categoryMap) {
         },
         
         pointToLayer(feature, latlng) {
-            const p = feature.properties;
+            const p = feature.properties || {};
             const category = categoryMap[p.term] || categoryMap.default;
             p.color = category.color;
             
             return L.marker(latlng, {
                 icon: createSvgIcon(
-                    feature.properties.color,
-                    feature.properties.icon
+                    p.color,
+                    p.icon
                 )
             });
         },
         
         onEachFeature(feature, layer) {
-            const p = feature.properties;
+            const p = feature.properties || {};
             const category = categoryMap[p.term] || categoryMap.default;
             
             if (!p.nopopup) {
@@ -171,7 +199,9 @@ function createGeoJsonLayer(map, geojson, categoryMap) {
 }
 
 function createSvgIcon(color, type = 'custom') {
-    const svg = SVG_ICONS[type]?.(color) || SVG_ICONS.custom(color);
+    const safe = window.LeafletMapSafeHtml;
+    const safeColor = safe ? safe.toSafeColor(color) : '#333333';
+    const svg = SVG_ICONS[type]?.(safeColor) || SVG_ICONS.custom(safeColor);
     
     return L.divIcon({
         className: 'svg-marker',
@@ -238,15 +268,32 @@ function normalizeCategories(categories = []) {
 * @returns {string} HTML string for popup.
 */
 function buildPopup(item, category) {
+    const safe = window.LeafletMapSafeHtml;
+    if (!safe) {
+        return '';
+    }
+
+    const title = safe.escapeHtml(item.title);
+    const excerpt = safe.escapeHtml(item.excerpt);
+    const termClass = safe.toSafeClass(item.term);
+    const catName = safe.escapeHtml(category.name);
+    const catColor = safe.toSafeColor(category.color);
+    const image = safe.isSafeUrl(item.image)
+        ? `<img class="leaflet-map-popup-image" src="${safe.escapeHtml(item.image)}" alt="${title}" />`
+        : '';
+    const link = item.link !== 'no' && safe.isSafeUrl(item.link)
+        ? `<a href="${safe.escapeHtml(item.link)}">Voir la fiche</a>`
+        : '';
+
     return `
-        <div class="leaflet-map-popup-category" style="--cat-rgb:${category.color}">
-            <div class="leaflet-map-popup-category-name">${category.name}</div>
-            <div class="leaflet-map-popup ${item.term}">
-                ${item.image ? `<img class="leaflet-map-popup-image" src="${item.image}" alt="${item.title}" />` : ''}
+        <div class="leaflet-map-popup-category" style="--cat-rgb:${catColor}">
+            <div class="leaflet-map-popup-category-name">${catName}</div>
+            <div class="leaflet-map-popup ${termClass}">
+                ${image}
                 <div class="leaflet-map-popup-content">
-                    <h3>${item.title}</h3>
-                    <p>${item.excerpt}</p>
-                    ${item.link !== "no" ? `<a href="${item.link}">Voir la fiche</a>` : ''}
+                    <h3>${title}</h3>
+                    <p>${excerpt}</p>
+                    ${link}
                 </div>
             </div>
         </div>

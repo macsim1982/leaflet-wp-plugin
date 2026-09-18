@@ -43,12 +43,20 @@ add_action('wp_enqueue_scripts', function () {
 		'1.0.0'
 	);
 
+	wp_enqueue_script(
+		'leaflet-map-safe-html',
+		LEAFLET_MAP_URL . 'assets/js/safe-html.js',
+		[],
+		'1.0.1',
+		true
+	);
+
 	// JS métier
 	wp_enqueue_script(
 		'leaflet-map-init',
 		LEAFLET_MAP_URL . 'assets/js/map-init.js',
-		['leaflet-js'],
-		'1.0.0',
+		['leaflet-js', 'leaflet-map-safe-html'],
+		'1.0.1',
 		true
 	);
 });
