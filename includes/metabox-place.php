@@ -44,6 +44,18 @@ function leaflet_render_place_metabox($post) {
 
 add_action('save_post_' . leaflet_map_post_type(), function ($post_id) {
 
+	if (defined('DOING_AUTOSAVE') && DOING_AUTOSAVE) {
+		return;
+	}
+
+	if (wp_is_post_revision($post_id)) {
+		return;
+	}
+
+	if (!current_user_can('edit_post', $post_id)) {
+		return;
+	}
+
 	if (!isset($_POST[leaflet_map_meta_key('place_nonce')]) ||
 	    !wp_verify_nonce($_POST[leaflet_map_meta_key('place_nonce')], leaflet_map_meta_key('place_meta'))) {
 		return;
