@@ -22,3 +22,17 @@ function leaflet_map_taxonomy() {
 	$settings = leaflet_map_settings();
 	return sanitize_key($settings['taxonomy'] ?? 'cat_place');
 }
+
+/**
+ * Password-protected places must not appear in the public map payload.
+ *
+ * WordPress stores them as `publish` + a non-empty `post_password`. Core
+ * hides the single-post body behind a password form, but WP_Query still
+ * returns them unless `has_password` is false.
+ *
+ * @param string $post_password Raw `post_password` field (empty if unlocked/public).
+ * @return bool
+ */
+function leaflet_map_is_password_protected_post($post_password) {
+	return is_string($post_password) && $post_password !== '';
+}
