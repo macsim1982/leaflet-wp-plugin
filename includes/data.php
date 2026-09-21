@@ -36,6 +36,7 @@ add_action('wp_enqueue_scripts', function () {
 	$args = [
 		'post_type'      => leaflet_map_post_type(),
 		'posts_per_page' => -1,
+		'has_password'   => false,
 		'post_status'    => current_user_can('administrator')
         ? ['publish', 'private', 'draft', 'pending', 'future']
         : ['publish'],
@@ -50,6 +51,10 @@ add_action('wp_enqueue_scripts', function () {
 		$query->the_post();
 
 		$pid = get_the_ID();
+
+		if (leaflet_map_is_password_protected_post(get_post_field('post_password', $pid))) {
+			continue;
+		}
 
 		$lat     = get_post_meta($pid, leaflet_map_meta_key('latitude'), true);
 		$lng     = get_post_meta($pid, leaflet_map_meta_key('longitude'), true);
