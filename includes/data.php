@@ -56,7 +56,7 @@ add_action('wp_enqueue_scripts', function () {
 		$geojson = get_post_meta($pid, leaflet_map_meta_key('geojson'), true);
 		$weight  = (int) get_post_meta($pid, leaflet_map_meta_key('line_weight'), true) ?: 5;
 
-		if (!$geojson && (!$lat || !$lng)) {
+		if (!$geojson && !leaflet_map_has_coordinates($lat, $lng)) {
 			continue;
 		}
 
