@@ -104,12 +104,31 @@ add_action('wp_enqueue_scripts', function () {
 			]];
 		}
 
+		$raw_features = array_values(array_filter(
+			$raw_features,
+			static function ($raw_feature) {
+				return leaflet_map_geometry_is_valid($raw_feature['geometry'] ?? null);
+			}
+		));
+
+		// Malformed GeoJSON must not drop a place that still has a usable point.
+		if (!$raw_features && is_numeric($lat) && is_numeric($lng)) {
+			$raw_features = [[
+				'type' => 'Feature',
+				'geometry' => [
+					'type' => 'Point',
+					'coordinates' => [(float) $lng, (float) $lat],
+				],
+				'properties' => []
+			]];
+		}
+
 
 		/* ----------------------------
 		 * Feature
 		 * ---------------------------- */
 		foreach ($raw_features as $raw_feature) {
-			if (!isset($raw_feature['geometry'])) {
+			if (!leaflet_map_geometry_is_valid($raw_feature['geometry'] ?? null)) {
 				continue;
 			}
 

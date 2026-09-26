@@ -90,6 +90,74 @@ function hexToRgb(hex) {
     ].join(',');
 }
 
+function isFiniteCoordinate(value) {
+    return value !== '' && value !== null && Number.isFinite(Number(value));
+}
+
+function isValidPosition(coords) {
+    return Array.isArray(coords)
+        && isFiniteCoordinate(coords[0])
+        && isFiniteCoordinate(coords[1]);
+}
+
+function isValidPositionList(coords, depth) {
+    if (!Array.isArray(coords) || coords.length === 0) {
+        return false;
+    }
+    if (depth === 0) {
+        return isValidPosition(coords);
+    }
+    return coords.every((item) => isValidPositionList(item, depth - 1));
+}
+
+/**
+ * Leaflet geometryToLayer() throws on missing/non-numeric coordinates
+ * ("Invalid LatLng object") and aborts the whole FeatureCollection.
+ */
+function isValidGeometry(geometry) {
+    if (!geometry || typeof geometry !== 'object') {
+        return false;
+    }
+
+    if (geometry.type === 'GeometryCollection') {
+        return Array.isArray(geometry.geometries)
+            && geometry.geometries.length > 0
+            && geometry.geometries.every(isValidGeometry);
+    }
+
+    if (!geometry.type || geometry.coordinates == null) {
+        return false;
+    }
+
+    switch (geometry.type) {
+        case 'Point':
+            return isValidPosition(geometry.coordinates);
+        case 'MultiPoint':
+        case 'LineString':
+            return isValidPositionList(geometry.coordinates, 1);
+        case 'MultiLineString':
+        case 'Polygon':
+            return isValidPositionList(geometry.coordinates, 2);
+        case 'MultiPolygon':
+            return isValidPositionList(geometry.coordinates, 3);
+        default:
+            return false;
+    }
+}
+
+function sanitizeGeoJson(geojson) {
+    const features = Array.isArray(geojson)
+        ? geojson
+        : Array.isArray(geojson?.features)
+            ? geojson.features
+            : [];
+
+    return {
+        type: 'FeatureCollection',
+        features: features.filter((feature) => isValidGeometry(feature?.geometry)),
+    };
+}
+
 /**
 * Create a GeoJSON layer and grouped feature groups from the provided data.
 * @param {L.Map} map Leaflet map instance.
@@ -103,7 +171,7 @@ function createGeoJsonLayer(map, geojson, categoryMap) {
     const allGroup = L.featureGroup().addTo(map);
     
     
-    const layer = L.geoJSON(geojson, {
+    const layer = L.geoJSON(sanitizeGeoJson(geojson), {
         style(feature) {
             return {
                 color: feature.properties.stroke || feature.properties.color,
