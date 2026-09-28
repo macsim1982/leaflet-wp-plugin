@@ -265,14 +265,56 @@ function clearMap(map) {
     }
 }
 
+/**
+ * Union Leaflet bounds from groups that actually have layers.
+ *
+ * Uncategorized WP places (term "default") and GeoJSON `term: "static"` are
+ * stored in `_staticGroup`, not `_allGroup`. Fitting only `_allGroup` leaves
+ * those features off-screen — the map stays on the hardcoded Brittany view.
+ *
+ * @param {Array<L.LayerGroup|undefined|null>} groups
+ * @returns {L.LatLngBounds|null}
+ */
+function boundsFromGroups(groups) {
+    let bounds = null;
+    if (!Array.isArray(groups)) {
+        return null;
+    }
+
+    for (const group of groups) {
+        if (!group || typeof group.getLayers !== 'function') {
+            continue;
+        }
+
+        const layers = group.getLayers();
+        if (!layers || !layers.length || typeof group.getBounds !== 'function') {
+            continue;
+        }
+
+        const next = group.getBounds();
+        if (!next || typeof next.isValid !== 'function' || !next.isValid()) {
+            continue;
+        }
+
+        bounds = bounds ? bounds.extend(next) : next;
+    }
+
+    return bounds;
+}
+
+function flyToGroups(map, groups) {
+    const bounds = boundsFromGroups(groups);
+    if (bounds) {
+        map.flyToBounds(bounds, fitBoundsOptions);
+    }
+}
+
 function showAllCategories(map) {
     clearMap(map);
     
     map._allGroup.addTo(map);
     
-    if (map._allGroup.getLayers().length) {
-        map.flyToBounds(map._allGroup.getBounds(), fitBoundsOptions);
-    }
+    flyToGroups(map, [map._allGroup, map._staticGroup]);
 }
 
 function showCategory(map, term) {
@@ -365,9 +407,7 @@ document.addEventListener("DOMContentLoaded", function () {
         map._allGroup = allGroup;
         map._mapId = mapId;
         
-        if (allGroup.getLayers().length) {
-            map.flyToBounds(allGroup.getBounds(), fitBoundsOptions);
-        }
+        flyToGroups(map, [allGroup, staticGroup]);
         
         const filtersContainer = document.getElementById(filtersId);
         if (filtersContainer) {
