@@ -11,7 +11,8 @@ function leaflet_map_normalize_geojson($geojson) {
 
 	// Case 1: FeatureCollection
 	if (($geojson['type'] ?? '') === 'FeatureCollection') {
-		return $geojson['features'] ?? [];
+		$features = $geojson['features'] ?? [];
+		return is_array($features) ? $features : [];
 	}
 
 	// Case 2: Feature
@@ -109,11 +110,11 @@ add_action('wp_enqueue_scripts', function () {
 		 * Feature
 		 * ---------------------------- */
 		foreach ($raw_features as $raw_feature) {
-			if (!isset($raw_feature['geometry'])) {
+			if (!is_array($raw_feature) || !isset($raw_feature['geometry'])) {
 				continue;
 			}
 
-			$geoProps = $raw_feature['properties'] ?? [];
+			$geoProps = leaflet_map_feature_properties($raw_feature['properties'] ?? null);
 
 			$wpProps = [
 				'id'        => $pid,
