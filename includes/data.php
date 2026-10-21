@@ -31,6 +31,44 @@ function leaflet_map_normalize_geojson($geojson) {
 	return [];
 }
 
+/**
+ * Resolve a Place's GeoJSON features, falling back to lat/lng when GeoJSON
+ * is missing or does not yield any features.
+ *
+ * A non-empty GeoJSON textarea used to skip the coordinate Point entirely.
+ * Invalid JSON, `{}`, or an empty FeatureCollection then dropped a published
+ * Place from mapData even when latitude/longitude were set.
+ *
+ * @param mixed $geojson Raw geojson post meta (string or already-decoded).
+ * @param mixed $lat Raw latitude post meta.
+ * @param mixed $lng Raw longitude post meta.
+ * @return array List of GeoJSON Feature arrays.
+ */
+function leaflet_map_place_raw_features($geojson, $lat, $lng) {
+	$raw_features = [];
+
+	if ($geojson) {
+		$raw_features = leaflet_map_normalize_geojson($geojson);
+	}
+
+	if ($raw_features) {
+		return $raw_features;
+	}
+
+	if (!is_numeric($lat) || !is_numeric($lng)) {
+		return [];
+	}
+
+	return [[
+		'type' => 'Feature',
+		'geometry' => [
+			'type' => 'Point',
+			'coordinates' => [(float) $lng, (float) $lat],
+		],
+		'properties' => [],
+	]];
+}
+
 add_action('wp_enqueue_scripts', function () {
 
 	$args = [
@@ -89,20 +127,7 @@ add_action('wp_enqueue_scripts', function () {
 		/* ----------------------------
 		 * Geometry
 		 * ---------------------------- */
-		$raw_features = [];
-
-		if ($geojson) {
-			$raw_features = leaflet_map_normalize_geojson($geojson);
-		} else {
-			$raw_features = [[
-				'type' => 'Feature',
-				'geometry' => [
-					'type' => 'Point',
-					'coordinates' => [(float) $lng, (float) $lat],
-				],
-				'properties' => []
-			]];
-		}
+		$raw_features = leaflet_map_place_raw_features($geojson, $lat, $lng);
 
 
 		/* ----------------------------
