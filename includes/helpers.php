@@ -22,3 +22,18 @@ function leaflet_map_taxonomy() {
 	$settings = leaflet_map_settings();
 	return sanitize_key($settings['taxonomy'] ?? 'cat_place');
 }
+
+/**
+ * Post statuses allowed in the public `mapData` payload.
+ *
+ * Draft / private / pending / future Places must stay out of this script
+ * even when an administrator is viewing the front-end. `mapData` is printed
+ * on every page via `wp_localize_script`; page caches that do not vary on
+ * auth cookies would otherwise serve unpublished titles, excerpts, links,
+ * and coordinates to anonymous visitors.
+ *
+ * @return string
+ */
+function leaflet_map_public_map_post_status() {
+	return 'publish';
+}
