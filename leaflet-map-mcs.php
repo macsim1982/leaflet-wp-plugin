@@ -23,7 +23,7 @@ require_once LEAFLET_MAP_PATH . 'includes/shortcode.php';
 require_once LEAFLET_MAP_PATH . 'includes/admin.php';
 
 register_activation_hook(__FILE__, function () {
-	require_once LEAFLET_MAP_PATH . 'includes/post-types.php';
+	leaflet_map_register_content_types();
 	flush_rewrite_rules();
 });
 
