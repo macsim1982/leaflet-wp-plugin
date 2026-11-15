@@ -12,6 +12,9 @@
  * @return string HTML markup for the map
  */
 function leaflet_map_shortcode($atts = []) {
+	leaflet_map_enqueue_frontend_assets();
+	leaflet_map_localize_data();
+
 	$atts = shortcode_atts(
 		[
 			'id' => 'leaflet-map-' . uniqid(),

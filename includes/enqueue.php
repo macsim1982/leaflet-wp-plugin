@@ -17,9 +17,13 @@ add_action('admin_enqueue_scripts', function ($hook) {
 	);
 });
 
-add_action('wp_enqueue_scripts', function () {
-
-	// Leaflet
+/**
+ * Enqueue front-end Leaflet assets.
+ *
+ * Called from the shortcode so CSS/JS are not loaded on pages without a map.
+ * Safe during content render because the scripts print in the footer.
+ */
+function leaflet_map_enqueue_frontend_assets() {
 	wp_enqueue_style(
 		'leaflet-css',
 		LEAFLET_MAP_URL . 'assets/css/leaflet.css',
@@ -35,15 +39,13 @@ add_action('wp_enqueue_scripts', function () {
 		true
 	);
 
-    // CSS métier
-    wp_enqueue_style(
+	wp_enqueue_style(
 		'leaflet-map-css',
 		LEAFLET_MAP_URL . 'assets/css/map.css',
 		[],
 		'1.0.0'
 	);
 
-	// JS métier
 	wp_enqueue_script(
 		'leaflet-map-init',
 		LEAFLET_MAP_URL . 'assets/js/map-init.js',
@@ -51,4 +53,4 @@ add_action('wp_enqueue_scripts', function () {
 		'1.0.0',
 		true
 	);
-});
+}
