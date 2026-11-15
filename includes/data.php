@@ -31,8 +31,12 @@ function leaflet_map_normalize_geojson($geojson) {
 	return [];
 }
 
-add_action('wp_enqueue_scripts', function () {
-
+/**
+ * Build the public map payload (GeoJSON features + categories).
+ *
+ * @return array{geojson: array, categories: array}
+ */
+function leaflet_map_build_map_data() {
 	$args = [
 		'post_type'      => leaflet_map_post_type(),
 		'posts_per_page' => -1,
@@ -140,15 +144,37 @@ add_action('wp_enqueue_scripts', function () {
 
 	wp_reset_postdata();
 
+	return [
+		'geojson'    => [
+			'type'     => 'FeatureCollection',
+			'features' => $features,
+		],
+		'categories' => array_values($categories),
+	];
+}
+
+/**
+ * Print mapData next to the map init script.
+ *
+ * Must run after the script is enqueued. Idempotent so multiple shortcodes
+ * on one page share a single payload.
+ */
+function leaflet_map_localize_data() {
+	static $done = false;
+
+	if ($done) {
+		return;
+	}
+
+	if (!wp_script_is('leaflet-map-init', 'enqueued')) {
+		return;
+	}
+
 	wp_localize_script(
 		'leaflet-map-init',
 		'mapData',
-		[
-			'geojson'    => [
-				'type'     => 'FeatureCollection',
-				'features' => $features,
-			],
-			'categories' => array_values($categories),
-		]
+		leaflet_map_build_map_data()
 	);
-});
+
+	$done = true;
+}
