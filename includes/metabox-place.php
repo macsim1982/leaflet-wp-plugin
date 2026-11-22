@@ -13,10 +13,10 @@ function leaflet_render_place_metabox($post) {
 
 	wp_nonce_field(leaflet_map_meta_key('place_meta'), leaflet_map_meta_key('place_nonce'));
 
-    $lat     = get_post_meta($post->ID, leaflet_map_meta_key("latitude"), true);
-    $lng     = get_post_meta($post->ID, leaflet_map_meta_key("longitude"), true);
-    $geo = get_post_meta($post->ID, leaflet_map_meta_key("geojson"), true);
-    $line  = get_post_meta($post->ID, leaflet_map_meta_key("line_weight"), true) ?: 5;
+    $lat     = leaflet_map_get_post_meta($post->ID, "latitude");
+    $lng     = leaflet_map_get_post_meta($post->ID, "longitude");
+    $geo = leaflet_map_get_post_meta($post->ID, "geojson");
+    $line  = leaflet_map_get_post_meta($post->ID, "line_weight") ?: 5;
 
 	?>
 
