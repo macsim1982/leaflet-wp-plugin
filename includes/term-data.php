@@ -14,7 +14,7 @@ function mcs_add_term_color() {
 }
 
 function mcs_edit_term_color($term) {
-	$color = get_term_meta($term->term_id, leaflet_map_meta_key('cat_place_color'), true) ?: '#DDDDDD';
+	$color = leaflet_map_get_term_meta($term->term_id, 'cat_place_color') ?: '#DDDDDD';
 	?>
 	<tr class="form-field">
 		<th><label>Couleur</label></th>

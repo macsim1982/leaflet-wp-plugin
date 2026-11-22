@@ -51,10 +51,10 @@ add_action('wp_enqueue_scripts', function () {
 
 		$pid = get_the_ID();
 
-		$lat     = get_post_meta($pid, leaflet_map_meta_key('latitude'), true);
-		$lng     = get_post_meta($pid, leaflet_map_meta_key('longitude'), true);
-		$geojson = get_post_meta($pid, leaflet_map_meta_key('geojson'), true);
-		$weight  = (int) get_post_meta($pid, leaflet_map_meta_key('line_weight'), true) ?: 5;
+		$lat     = leaflet_map_get_post_meta($pid, 'latitude');
+		$lng     = leaflet_map_get_post_meta($pid, 'longitude');
+		$geojson = leaflet_map_get_post_meta($pid, 'geojson');
+		$weight  = (int) leaflet_map_get_post_meta($pid, 'line_weight') ?: 5;
 
 		if (!$geojson && (!$lat || !$lng)) {
 			continue;
@@ -73,10 +73,9 @@ add_action('wp_enqueue_scripts', function () {
 
 			$term_slug = $term->slug;
 			$term_name = $term->name;
-			$color     = get_term_meta(
+			$color     = leaflet_map_get_term_meta(
 				$term->term_id,
-				leaflet_map_meta_key('cat_place_color'),
-				true
+				'cat_place_color'
 			) ?: $color;
 
 			$categories[$term_slug] = [
